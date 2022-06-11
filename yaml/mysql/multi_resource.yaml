@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wordpress-mysql-pv
+  namespace: database
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv00002"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-mysql-pvc
+  namespace: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: wordpress-mysql
+  name: wordpress-mysql
+  namespace: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress-mysql
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: wordpress-mysql
+    spec:
+      containers:
+      - image: mysql:5.7
+        name: wordpress-mysql
+        resources:
+          requests:
+            cpu: 500m
+            memory: 300Mi
+          limits:
+            memory: 1024Mi
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: wordpress-mysql-secret
+              key: MYSQL_DATABASE
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wordpress-mysql-secret
+              key: MYSQL_ROOT_PASSWORD
+        volumeMounts:
+          - mountPath: "/var/lib/mysql"
+            name: pvc
+            subPath: dbdata
+        ports:
+        - containerPort: 3306
+          name: mysql
+      volumes:
+        - name: pvc
+          persistentVolumeClaim:
+            claimName: wordpress-mysql-pvc
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: wordpress-mysql
+  name: wordpress-mysql
+  namespace: database
+spec:
+  ports:
+  - name: "3306"
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: wordpress-mysql
+  type: ClusterIP
+status:
+  loadBalancer: {}

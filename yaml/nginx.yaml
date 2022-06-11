@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-kibana
+  namespace: elk
+  annotations:
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: kibana.example.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: kibana-kibana
+            port:
+              number: 5601
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: wp01
+  name: ingress-wp01
+  namespace: database
+  annotations:
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: wp01.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wp01
+            port:
+              number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: wp02
+  name: ingress-wp02
+  namespace: client-b
+  annotations:
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: wp02.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wp02
+            port:
+              number: 80

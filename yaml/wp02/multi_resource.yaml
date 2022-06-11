@@ -1,0 +1,123 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wp02-pv
+  namespace: client-b
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/wp02"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wp02-pvc
+  namespace: client-b
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wp02
+  namespace: client-b
+  labels:
+    app: wp02
+spec:
+  selector:
+    matchLabels:
+      app: wp02
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: wp02
+        tier: frontend
+    spec:
+      containers:
+      - image: wordpress:4.8-apache
+        name: wp02
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            memory: 500Mi
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: wordpress-mysql.database.svc.cluster.local
+        - name: WORDPRESS_DB_NAME
+          value: wp02
+        - name: WORDPRESS_DB_USER
+          value: wp02
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wp02-mysql-secret
+              key: WORDPRESS_DB_PASSWORD
+        ports:
+        - containerPort: 80
+          name: wp02
+        volumeMounts:
+        - name: wp02-persistent-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: wp02-persistent-storage
+        persistentVolumeClaim:
+          claimName: wp02-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: wp02
+  name: wp02
+  namespace: client-b
+spec:
+  ports:
+  - name: "http"
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: wp02
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wp02
+  namespace: client-b
+spec:
+  maxReplicas: 10
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 50
+        type: Utilization
+    type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wp02

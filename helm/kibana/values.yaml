@@ -1,0 +1,8 @@
+envFrom: []
+# - secretRef:
+#     name: env-secret
+# - configMapRef:
+#     name: config-map
+extraEnvs:
+- name: SERVER_PUBLICBASEURL
+  value: https://example.com
